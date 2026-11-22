@@ -39,8 +39,8 @@ checks.
 
 The PR description or review record should include:
 
-- The four local commands and their exit codes (or a clear note when local
-  verification was not performed).
+- The four local commands and their exit codes. Local verification must be
+  performed before opening the PR; a PR without it is not ready for review.
 - The CI run URL and final result for the `linux` job.
 - Any relevant test count or failure details.
 - Confirmation that no check was weakened and no duplicate workflow was added.
