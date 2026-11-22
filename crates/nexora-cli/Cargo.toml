@@ -1,0 +1,9 @@
+[package]
+name = "nexora-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora command-line interface (bootstrap: --version / --help only)"
+
+[dependencies]
+nexora-core = { path = "../nexora-core" }

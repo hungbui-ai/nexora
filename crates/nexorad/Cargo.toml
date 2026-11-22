@@ -1,0 +1,9 @@
+[package]
+name = "nexorad"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Nexora daemon binary (bootstrap: prints its version and exits; starts no daemon)"
+
+[dependencies]
+nexora-core = { path = "../nexora-core" }
