@@ -47,11 +47,11 @@ The PR description or review record should include:
 
 ## Enforcement status
 
-The workflow is configured to run on pushes and pull requests. The `linux` job
-is the CI status to require on `main` once repository branch protection is
-approved and configured. Until that setting is verified, CI is a contributor
-procedure and is **not** an enforced merge requirement. TASK-002 AC4 remains
-pending separate repository-admin approval.
+The workflow is configured to run on pushes and pull requests. Branch
+protection on `main` requires the `linux` job to pass before merge
+(TASK-002 AC4; approved by the owner and applied 2026-11-22: required
+status checks `["linux"]`, strict). CI is an enforced merge requirement,
+not only a contributor procedure.
 
 ## TASK-002 verification notes
 
