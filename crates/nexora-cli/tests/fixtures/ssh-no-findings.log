@@ -1,0 +1,4 @@
+Nov 22 10:00:00 myhost sshd[1234]: Failed password for root from 203.0.113.7 port 22 ssh2
+Nov 22 10:00:01 myhost sshd[1234]: Failed password for root from 203.0.113.7 port 22 ssh2
+Nov 22 10:00:02 myhost sshd[1234]: Accepted password for root from 203.0.113.7 port 22 ssh2
+Nov 22 10:00:03 myhost sshd[1234]: Server listening on 0.0.0.0 port 22.
