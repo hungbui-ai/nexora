@@ -1,15 +1,23 @@
 //! Shared core library for Nexora.
 //!
-//! Bootstrap scope only: this crate exposes the workspace version,
-//! an identifier string, and the shared error/result contracts
-//! (TASK-003). It implements no security functionality.
+//! This crate exposes the workspace version, an identifier string,
+//! the shared error/result contracts (TASK-003), and the SSH
+//! brute-force detection parser (TASK-005). It implements no other
+//! security functionality.
 //!
 //! The contract surface is re-exported at the crate root:
 //! [`Error`], [`ErrorKind`], and [`Result`], plus [`VERSION`] and
-//! [`identifier()`].
+//! [`identifier()`]. The detection surface is likewise re-exported
+//! from [`detection`]: [`SSH_BRUTE_FORCE_THRESHOLD`],
+//! [`SshBruteForceFinding`], [`BruteForceCounter`], and
+//! [`count_failed_passwords`].
 
+pub mod detection;
 pub mod error;
 
+pub use detection::{
+    count_failed_passwords, BruteForceCounter, SshBruteForceFinding, SSH_BRUTE_FORCE_THRESHOLD,
+};
 pub use error::{Error, ErrorKind, Result};
 
 /// The version of the Nexora workspace.

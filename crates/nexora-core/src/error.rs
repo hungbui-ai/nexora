@@ -22,9 +22,9 @@ pub enum ErrorKind {
     /// The caller asked for something invalid (today: an invalid
     /// CLI invocation). Numeric exit code 2.
     Usage,
-    /// An unexpected internal failure. Numeric exit code 1. No
-    /// production path constructs it today; it exists so the first
-    /// fallible operation has a kind to use.
+    /// An unexpected internal failure. Numeric exit code 1. The
+    /// first production use is the TASK-005 log-file read (a log
+    /// file that cannot be opened or read).
     Internal,
 }
 
