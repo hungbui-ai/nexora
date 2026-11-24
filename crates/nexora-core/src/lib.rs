@@ -26,10 +26,10 @@ pub use detection::{
 };
 pub use error::{Error, ErrorKind, Result};
 pub use exposure::{
-    aggregate, parse_proc_net_line, render_report, sanitise_comm, AggregatedReport, OwnerPair,
-    ReportLine, ReportOwner, SocketEntry, SocketProtocol, MAX_FDS_EXAMINED, MAX_PROCESSES_SCANNED,
-    MAX_PROC_NET_LINE_BYTES, MAX_REPORT_BYTES, MAX_REPORT_LINES, MAX_SOCKET_ENTRIES,
-    MAX_SOCKET_TABLE_LINES,
+    aggregate, build_report, parse_proc_net_line, render_report, sanitise_comm, AggregatedReport,
+    OwnerPair, ReportLine, ReportOwner, SocketEntry, SocketProtocol, MAX_FDS_EXAMINED,
+    MAX_PROCESSES_SCANNED, MAX_PROC_NET_LINE_BYTES, MAX_REPORT_BYTES, MAX_REPORT_LINES,
+    MAX_SOCKET_ENTRIES, MAX_SOCKET_TABLE_LINES,
 };
 
 /// The version of the Nexora workspace.

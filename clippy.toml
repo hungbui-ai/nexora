@@ -1,0 +1,10 @@
+disallowed-methods = [
+  "std::process::Command::new",
+  "std::process::Command::spawn",
+  "std::process::Command::output",
+  "std::process::Command::status",
+]
+disallowed-types = [
+  "std::process::Stdio",
+  "std::process::Child",
+]
