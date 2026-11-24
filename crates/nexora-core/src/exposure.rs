@@ -477,6 +477,27 @@ pub fn render_report(report: &AggregatedReport) -> Result<String> {
     Ok(out)
 }
 
+/// Builds the exact report string for a host-exposure inventory:
+/// aggregates the kept socket entries, the deduplicated owner
+/// pairs, and the unknown-owner inodes, then renders the exact
+/// report. This is the single pure entry point for the whole
+/// output contract (implementation plan WP4 step 1, §10 Q3): the
+/// CLI calls this once, after streaming the socket tables and
+/// scanning owners, and writes the returned string to stdout
+/// exactly once. Returns the limits error if any cap is exceeded
+/// (entries, total report lines, or rendered bytes); nothing is
+/// rendered on that path.
+pub fn build_report(
+    entries: &[SocketEntry],
+    pairs: &[OwnerPair],
+    unknown_inodes: &[u64],
+    lines_read: u64,
+    unparsed_lines: u64,
+) -> Result<String> {
+    let aggregated = aggregate(entries, pairs, unknown_inodes, lines_read, unparsed_lines)?;
+    render_report(&aggregated)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1020,6 +1041,36 @@ mod tests {
             unparsed_lines: 0,
         };
         let err = render_report(&report).expect_err("must fail");
+        assert_eq!(err.kind(), ErrorKind::Internal);
+        assert_eq!(err.message(), "socket inventory exceeds limits");
+        assert_eq!(err.exit_code(), 1);
+    }
+
+    #[test]
+    fn build_report_renders_the_exact_report() {
+        let entries = vec![tcp_entry("127.0.0.1", 8080, 1), tcp_entry("0.0.0.0", 22, 2)];
+        let pairs = vec![pair(1, 100, "nginx"), pair(2, 200, "sshd")];
+        let rendered = build_report(&entries, &pairs, &[], 2, 0).expect("must build");
+        assert_eq!(
+            rendered,
+            "host exposure entries: 2\n\
+             tcp 0.0.0.0 22 200 sshd\n\
+             tcp 127.0.0.1 8080 100 nginx\n\
+             sockets listed: 2\n\
+             sockets with unknown owner: 0\n\
+             lines read: 2\n\
+             unparsed socket lines: 0\n"
+        );
+    }
+
+    #[test]
+    fn build_report_propagates_the_limits_error() {
+        // The (cap + 1)th entry fails in `aggregate`; `build_report`
+        // returns that error and renders nothing.
+        let entries: Vec<SocketEntry> = (0..=MAX_SOCKET_ENTRIES)
+            .map(|i| tcp_entry("127.0.0.1", 80, i as u64))
+            .collect();
+        let err = build_report(&entries, &[], &[], 10_001, 0).expect_err("must fail");
         assert_eq!(err.kind(), ErrorKind::Internal);
         assert_eq!(err.message(), "socket inventory exceeds limits");
         assert_eq!(err.exit_code(), 1);

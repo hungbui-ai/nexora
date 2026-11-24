@@ -14,10 +14,21 @@ const EXPECTED_OUTPUT: &str = "nexora-core 0.1.0\n\
                                 nexorad does not start a daemon in this build.\n";
 
 fn run(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_nexorad"))
+    // The second of the two permitted lint suppressions in the
+    // workspace (implementation plan §8.6, clippy.toml branch A,
+    // D-007-09 amendment): this statement spawns the binary under
+    // test. Statement scope only; it covers the `Command::new`
+    // and `.output()` calls in this statement — the two
+    // pre-existing TASK-003 calls — and nothing else. The helper
+    // is in let-form so the allow has a statement to attach to;
+    // the tests, the binary under test, and every assertion are
+    // unchanged.
+    #[allow(clippy::disallowed_methods)]
+    let output = Command::new(env!("CARGO_BIN_EXE_nexorad"))
         .args(args)
         .output()
-        .expect("failed to run nexorad binary")
+        .expect("failed to run nexorad binary");
+    output
 }
 
 fn assert_output(output: &Output, stdout: &str, stderr: &str, code: i32) {
