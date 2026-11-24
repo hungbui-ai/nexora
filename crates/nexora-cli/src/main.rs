@@ -26,7 +26,8 @@
 //! The report subcommand owns I/O and presentation only: it streams
 //! the four socket tables under a source root (production: `/proc`;
 //! tests: a fixture root via the `NEXORA_TEST_PROC_ROOT`
-//! environment variable — no CLI flag exposes the seam), scans the
+//! environment variable in debug builds only — no CLI flag exposes
+//! the seam), scans the
 //! process tree for socket owners, and prints the exact report the
 //! core builds. All parsing, aggregation, and rendering live in
 //! `nexora-core` (`exposure`).
@@ -259,18 +260,29 @@ fn limits_error() -> Error {
 
 /// The source root the host-exposure report reads socket data
 /// from. Production: `/proc`. The test seam (spec-mandated, plan
-/// §4.6): when the `NEXORA_TEST_PROC_ROOT` environment variable is
-/// set to a non-empty value, that directory is used instead, so
-/// integration tests can point the binary at fixture trees. No CLI
-/// flag exposes the seam, it is not documented in the usage text
-/// or the README, and it is not an operator feature: it exists
-/// only so tests can exercise the binary against fixture trees.
-/// An empty or non-UTF-8 value is treated as unset.
+/// §4.6) is debug-only (Owner decision 2026-11-24, review round 1
+/// of PR #6): in debug builds, when the `NEXORA_TEST_PROC_ROOT`
+/// environment variable is set to a non-empty value, that directory
+/// is used instead, so integration tests can point the binary at
+/// fixture trees; in release builds the seam is compiled out and
+/// the root is always `/proc`, so no environment variable can
+/// redirect the report's source. No CLI flag exposes the seam, it
+/// is not documented in the usage text or the README, and it is not
+/// an operator feature: it exists only so tests can exercise the
+/// binary against fixture trees. An empty or non-UTF-8 value is
+/// treated as unset.
+#[cfg(debug_assertions)]
 fn source_root() -> PathBuf {
     match env::var("NEXORA_TEST_PROC_ROOT") {
         Ok(value) if !value.is_empty() => PathBuf::from(value),
         _ => PathBuf::from("/proc"),
     }
+}
+
+// Release: the seam is compiled out; the root is always `/proc`.
+#[cfg(not(debug_assertions))]
+fn source_root() -> PathBuf {
+    PathBuf::from("/proc")
 }
 
 /// Runs the TASK-007 host-exposure report: builds the exact
@@ -385,14 +397,17 @@ struct OwnerResolution {
 /// username. A process or fd that disappears, or that cannot be
 /// read, makes its sockets `unknown`, never an error. Exceeding
 /// `MAX_PROCESSES_SCANNED` or `MAX_FDS_EXAMINED` stops the scan
-/// and returns the limits error.
+/// and returns the limits error. The caps are enforced while
+/// collecting directory entries (fail-fast), so the PID and fd
+/// vectors never grow past the caps: the 10,001st valid PID and
+/// the 100,001st valid fd each return the limits error
+/// immediately, without further allocation.
 fn scan_owners(source_root: &Path, entries: &[SocketEntry]) -> Result<OwnerResolution> {
     let kept: BTreeSet<u64> = entries.iter().map(|entry| entry.inode).collect();
     let mut pairs: BTreeSet<(u64, u32)> = BTreeSet::new();
     // PID -> sanitised comm, or `None` when the `comm` read
     // failed (cached so the failure is not retried per fd).
     let mut names: BTreeMap<u32, Option<String>> = BTreeMap::new();
-    let mut processes_scanned: usize = 0;
     let mut fds_examined: u64 = 0;
 
     let proc_dir =
@@ -409,14 +424,18 @@ fn scan_owners(source_root: &Path, entries: &[SocketEntry]) -> Result<OwnerResol
         let Ok(pid) = name.parse::<u32>() else {
             continue;
         };
+        // Fail fast: the process cap is enforced while collecting,
+        // so the vector never holds more than
+        // `MAX_PROCESSES_SCANNED` entries. The 10,001st valid PID
+        // returns the limits error immediately, without further
+        // allocation.
+        if pids.len() >= MAX_PROCESSES_SCANNED {
+            return Err(limits_error());
+        }
         pids.push(pid);
     }
     pids.sort_unstable();
     for pid in pids {
-        processes_scanned += 1;
-        if processes_scanned > MAX_PROCESSES_SCANNED {
-            return Err(limits_error());
-        }
         let pid_dir = source_root.join(pid.to_string());
         let fd_dir = match fs::read_dir(pid_dir.join("fd")) {
             Ok(dir) => dir,
@@ -435,14 +454,18 @@ fn scan_owners(source_root: &Path, entries: &[SocketEntry]) -> Result<OwnerResol
             let Ok(fd) = name.parse::<u32>() else {
                 continue;
             };
+            // Fail fast: the fd cap is global across all PIDs and
+            // is enforced while collecting, so no per-PID vector
+            // grows past the remaining allowance. The 100,001st
+            // valid fd returns the limits error immediately.
+            if fds_examined >= MAX_FDS_EXAMINED {
+                return Err(limits_error());
+            }
+            fds_examined += 1;
             fds.push(fd);
         }
         fds.sort_unstable();
         for fd in fds {
-            fds_examined += 1;
-            if fds_examined > MAX_FDS_EXAMINED {
-                return Err(limits_error());
-            }
             let target = match fs::read_link(pid_dir.join("fd").join(fd.to_string())) {
                 Ok(target) => target,
                 // The fd closed between listing and reading.
